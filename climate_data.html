@@ -1,0 +1,232 @@
+<!doctype html>
+
+<html>
+
+<head>
+	<meta charset='utf-8'/>
+	<script src="http://d3js.org/d3.v4.min.js"></script>
+	<title>CSC630</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			text-align: center;
+		}
+
+		#center-div {
+			margin: 0 auto;
+		}
+
+		path {
+			stroke: rgb(44, 62, 80);
+		}
+
+		input {
+			width: 800px;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Map</h1>
+	<div id='center-div'>
+		<p>This is a map of the precipitation levels in the U.S. over the last 100 years. Lighter areas denote drier areas, and brighter areas denote wetter areas. Use the slider to scroll from January 1917 to January 2017.</p>
+		<input id = "slide" type="range" min="0" max="1200" step="1" onchange="getVal()">
+        <p></p>
+	</div>
+
+	<div id="info"></div>
+
+	<script>
+		var width = 800,
+			height = 600;
+
+		const padding = 30;
+
+		var val = 600
+		function getVal() {
+			val = document.getElementById("slide").value
+			// console.log(val)
+		}
+
+		d3.json("us_states.json", function(areas) {
+			d3.csv("avgs.csv", function(data) {
+				// console.log(data[0]['total ']/1167198)
+				// console.log(data[0]['area'])
+
+
+
+				var json_to_csv = {
+					"Alabama": 1,
+					"Arizona": 2,
+					"Arkansas": 3,
+					"California": 4,
+					"Colorado": 5,
+					"Connecticut": 6,
+					"Delaware": 7,
+					"Florida": 8,
+					"Georgia": 9,
+					"Idaho": 10,
+					"Illinois": 11,
+					"Indiana": 12,
+					"Iowa": 13,
+					"Kansas": 14,
+					"Kentucky": 15,
+					"Louisiana": 16,
+					"Maine": 17,
+					"Maryland": 18,
+					"Massachusetts": 19,
+					"Michigan": 20,
+					"Minnesota": 21,
+					"Mississippi": 22,
+					"Missouri": 23,
+					"Montana": 24,
+					"Nebraska": 25,
+					"Nevada": 26,
+					"New Hampshire": 27,
+					"New Jersey": 28,
+					"New Mexico": 29,
+					"New York": 30,
+					"North Carolina": 31,
+					"North Dakota": 32,
+					"Ohio": 33,
+					"Oklahoma": 34,
+					"Oregon": 35,
+					"Pennsylvania": 36,
+					"Rhode Island": 37,
+					"South Carolina": 38,
+					"South Dakota": 39,
+					"Tennessee": 40,
+					"Texas": 41,
+					"Utah": 42,
+					"Vermont": 43,
+					"Virginia": 44,
+					"Washington": 45,
+					"West Virginia": 46,
+					"Wisconsin": 47,
+					"Wyoming": 48
+				}
+
+				svg = d3.select("#center-div").append("svg")
+					.attr("width", width)
+					.attr("height", height)
+					.style("background-color", "#ecf0f1")
+
+
+				var projection = d3.geoConicEquidistant()
+					.rotate([100, 0, 0])
+					.fitExtent([[padding, padding], [-padding + width, -padding + height]], areas);
+				
+				var path = d3.geoPath()
+							.projection(projection);
+
+				function chooseColor(date, i) {
+					var start = get_slice(date)
+					var max = 11
+					if (i < 0) {
+						return "rgb(128, 128, 128)"
+					}
+					datapoint = data[start + i - 1]
+					value = 255 - Math.trunc(datapoint['avgpcp'] / max * 255)
+					console.log("value: " + value)
+					return "rgb(255," + value + ", 255)";
+				}
+
+				function createGraphic(date) {
+					var paths = svg.selectAll("path")
+						.data(areas.features, function(d) {return d.properties.name});
+
+
+						paths.enter()
+						.append("path")
+						.attr("d", function(d) {
+							return path(d.geometry);
+						})
+						// .attr("fill", "#fff")
+						.merge(paths)
+						.attr("fill", function(d, i) {
+							return chooseColor(date, json_to_csv[d.properties.name]);
+						})
+						.on("mouseover", function(d, i) {
+							d3.selectAll("#my_text")
+								.remove();
+							d3.select("#info")
+								.append("text")
+									// .text(areas_names)
+									.text(d.properties.name)
+									.attr("id", "my_text")
+									.attr("x", 50)
+									.attr("y", 50);
+						})
+						// console.log("run")
+					}
+
+				slider = document.getElementById("slide");
+				slider.addEventListener("change", function() {
+    				createGraphic(get_date(document.getElementById("slide").value));
+    				console.log("changed")
+
+				});
+
+				createGraphic(get_date(val))
+
+				function get_slice(input) {
+					date = String(input);
+					year = parseInt(date.substr(0, 4));
+					month = parseInt(date.substr(4, 2));
+					multiplier = 12 * (year - 1917) + month - 1;
+					start = 48 * multiplier;
+					return start;
+				}
+
+				function get_date(input) {
+					console.log("input:" + input)
+					shift = Math.trunc(input/12);
+					console.log(input - shift * 12 + 1)
+					year = String(1917 + shift)
+					month = '0'
+					month_val = input - shift * 12 + 1
+					if (month_val == 10||month_val == 11||month_val == 12) {
+						month = String(month_val)
+					}
+					else {
+						month += String(month_val)
+					}
+					date = year + month
+					console.log(date)
+					return date;
+				}
+
+				// svg.selectAll("text")
+				// 	.data(areas.features, function(d) {return d.properties.Name})
+				// 	.enter()
+				// 	.append("text")
+				// 	.text(function(d, i){return json_to_csv[d.properties.Name]})
+				// 	// .text(function(d, i) {return data[i]['name']})
+				// 	.attr("x", function(d){return path.centroid(d)[0];})
+				// 	.attr("y", function(d){return path.centroid(d)[1];}) 
+				// 	.style("font-size", "10px")
+
+
+				// function getDataRow(d, i) {
+				// 	console.log(d.properties.area_numbe)
+				// 	return 1;
+				// 	// get area_numbe from d
+				// 	// match it with num from pop.csv (data)
+				// 	// return a number that will work as the index for the call to chooseColor
+				// }
+
+				// function not_contains(arr, element) {
+				//     for (var i = 0; i < arr.length; i++) {
+				//         if (arr[i] === element) {
+				//             return false;
+				//         }
+				//     }
+				//     return true;
+				// } 
+			})
+		})
+
+	</script>
+</body>
+
+</html>
